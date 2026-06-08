@@ -16,15 +16,16 @@
 - 단일 VM 인스턴스 내 전체 파이프라인 구현 목표  
 
 ### 2. 단계별 기술 스택 및 데이터 포맷
-단계(레이어) | 주 기술 스택 | 데이터 포맷 | 주요 작업 및 역할
-Traffic | Python(Locust) | JSON | 초당 5,000건의 가상 광고 노출/클릭 로그 생성
-Ingestion | Kafka/Redpanda | Avro | 고속 전송 및 스키마 관리
-Bronze | Spark Structured Streaming | Parquet | Kafka에서 Avro를 읽어 원형 그대로 Delta Table에 적재
-Silver | Spark/dbt | Parquet | 중복 제거, 도메인 추출(URL 파싱), 기기 분류
-Gold | Spark/dbt | Parquet | 광고 ID 기준 집계 및 비즈니스 지표 산출
-Serving | Trino/Spark SQL | - | Gold 레이어 데이터를 대시보드로 쿼리 서빙
-Visualization | Grafana | - | 실시간 지표 시각화 및 이상 징후 알람 설정
-Orchestrator | Airflow | - | 파이프라인 트리거링 및 전체 워크플로우 관리
+| 단계(레이어) | 주 기술 스택 | 데이터 포맷 | 주요 작업 및 역할 |
+| --- | --- | --- | --- |
+| Traffic | Python(Locust) | JSON | 초당 5,000건의 가상 광고 노출/클릭 로그 생성 |
+| Ingestion | Kafka/Redpanda | Avro | 고속 전송 및 스키마 관리 |
+| Bronze | Spark Structured Streaming | Parquet | Kafka에서 Avro를 읽어 원형 그대로 Delta Table에 적재 |
+| Silver | Spark/dbt | Parquet | 중복 제거, 도메인 추출(URL 파싱), 기기 분류 |
+| Gold | Spark/dbt | Parquet | 광고 ID 기준 집계 및 비즈니스 지표 산출 |
+| Serving | Trino/Spark SQL | - | Gold 레이어 데이터를 대시보드로 쿼리 서빙 |
+| Visualization | Grafana | - | 실시간 지표 시각화 및 이상 징후 알람 설정 |
+| Orchestrator | Airflow | - | 파이프라인 트리거링 및 전체 워크플로우 관리 |
 
 
 ---
