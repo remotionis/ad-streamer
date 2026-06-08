@@ -17,7 +17,7 @@
 
 ### 2. 단계별 기술 스택 및 데이터 포맷
 | 단계(레이어) | 주 기술 스택 | 데이터 포맷 | 주요 작업 및 역할 |
-| --- | --- | --- | --- |
+| :-- | :-- | :-- | :-- |
 | Traffic | Python(Locust) | JSON | 초당 5,000건의 가상 광고 노출/클릭 로그 생성 |
 | Ingestion | Kafka/Redpanda | Avro | 고속 전송 및 스키마 관리 |
 | Bronze | Spark Structured Streaming | Parquet | Kafka에서 Avro를 읽어 원형 그대로 Delta Table에 적재 |
