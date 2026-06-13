@@ -1,15 +1,21 @@
 # locust로 데이터 생성 -> Kafka로 전송
 import json
 import time
+import yaml
 from locust import User, task, events, LoadTestShape
 import locust.runners
 from confluent_kafka import Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 from data_generator import generate_ad_log
 
-# Kafka 설정
-KAFKA_BROKER = "redpanda:9092"
-TOPIC_NAME = "ad-stream-topic"
+
+# config 세팅값 가져오기 + 셋업
+with open('config.yaml', 'r', encoding='utf-8') as file:
+        data = yaml.safe_load(file)
+
+KAFKA_BROKER = data['broker']
+TOPIC_NAME = data['topic']
+
 
 # kafka 토픽 생성 - 동일 토픽명 존재 시 기존 토픽 삭제 후 수행
 def reset_kafka_topic():

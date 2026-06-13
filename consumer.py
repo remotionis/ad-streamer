@@ -1,22 +1,29 @@
+import yaml
 from pyspark.sql import SparkSession
 from pyspark.sql.funcitons import col, from_json
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 
 
-KAFKA_BROKER = "redpanda:9092"
-TOPIC_NAME = "ad-stream-topic"
-GCS_BUCKET = ""
+# config 세팅값 가져오기 + 셋업
+with open('config.yaml', 'r', encoding='utf-8') as file:
+	data = yaml.safe_load(file)
+
+KAFKA_BROKER = data['broker']
+TOPIC_NAME = data['topic']
+GCS_BUCKET = data['gc']['bucket']
 
 BRONZE_PATH = f"{GCS_BUCKET}/bronze/"
 CHECKPOINT_PATH = f"{GCS_BUCKET}/checkpoints/bronze/"
 
 
+# spark 셋업
 spark = SparkSession.builder \
 	.appName("Ads_bronze") \
 	.config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
 	.config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
 	.getOrCreate()
 spark.sparkContext.setLogLevel("WARN")
+
 
 # 스키마 설정
 schema = StructType([

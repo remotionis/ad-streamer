@@ -17,4 +17,7 @@ docker exec -d spark-marter \
 	--conf spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS \
 	/opt/spark/scripts/consumer.py
 
-echo "Infra setup & consumer auto-start completed"
+echo "locust producer starting"
+locust -f producer.py --headless
+
+echo "Infra setup & auto-start completed"
