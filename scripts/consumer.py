@@ -5,7 +5,7 @@ from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 
 
 # config 세팅값 가져오기 + 셋업
-with open('config.yaml', 'r', encoding='utf-8') as file:
+with open('../config.yaml', 'r', encoding='utf-8') as file:
 	data = yaml.safe_load(file)
 
 KAFKA_BROKER = data['broker']
