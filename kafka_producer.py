@@ -2,12 +2,49 @@
 import json
 import time
 from locust import User, task, events, LoadTestShape
+import locust.runners
 from confluent_kafka import Producer
+from confluent_kafka.admin import AdminClient, NewTopic
 from data_generator import generate_ad_log
 
 # Kafka 설정
 KAFKA_BROKER = "redpanda:9092"
 TOPIC_NAME = "ad-stream-topic"
+
+# kafka 토픽 생성 - 동일 토픽명 존재 시 기존 토픽 삭제 후 수행
+def reset_kafka_topic():
+    admin_client = AdminClient({'bootstrap.servers': KAFKA_BROKER})
+
+    # 현재 토픽 목록 확인
+    metadata = admin_client.list_topics(timeout=10)
+
+    # 기존 토픽 확인 후 제거
+    if TOPIC_NAME in metadata.topics:
+	try:
+            fs = admin_client.delete_topics([TOPIC_NAME])
+	    for topic, f in fs.items():
+	        f.result()
+	    print("기존 토픽 발견, 제거 완료")
+	except Exception as e:
+	    print(f"토픽 제거 중 에러: {e}")
+    time.sleep(2)
+
+    try:
+	new_topic = NewTopic(TOPIC_NAME, num_partitions=10, replication_factor=1)
+	fs = admin_client.create_topics([new_topic])
+	for topic, f in fs.items():
+	    f.result()
+	print("신규 토픽 생성 완료")
+    except Exception as e:
+	print(f"토픽 생성 중 에러: {e}")
+
+
+# 이벤트 훅 - 테스트 시 reset_kafka_topic은 최초 1회만 실행되도록
+@events.test_start.add_listener
+def before_start(environment, **kwargs):
+    if not isinstance(environment.runner, locust.runners.WorkerRunner):
+	reset_kafka_topic()
+
 
 # Kafka Producer 초기화
 producer = Producer({
