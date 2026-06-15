@@ -1,4 +1,5 @@
 git_password.txt
 config.yaml
-result_checker.sh
-
+locust_env/
+*.log
+scripts/__pycache__/

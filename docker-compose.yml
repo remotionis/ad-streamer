@@ -6,10 +6,7 @@ services:
     image: docker.redpanda.com/redpandadata/redpanda:latest
     container_name: redpanda
     command:
-      - redpanda
-      - start
-      - --smp 2
-      - --memory 4G
+      - redpanda start --smp 2 --memory 4G
       - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
       - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
     ports:

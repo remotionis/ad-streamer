@@ -1,23 +1,29 @@
 echo "Infra auto setup started"
 
+echo "python & locust installation"
+sudo apt update
+sudo apt install -y python3 python3-venv netcat-openbsd
+
+python3 -m venv locust_env
+
+. locust_env/bin/activate
+
+pip install locust pyyaml confluent_kafka
+
+deactivate
+
+echo "docker installation - debian"
+sudo apt install -y gnome-terminal
+sudo apt-get install -y ./docker-desktop-amd64.deb
+
+:<<'END'
+
 mkdir -p ./dags ./logs ./plugins
 echo -e "AIRFLOW_UID=$(id -u)" > .env
 
 echo "Airflow init started"
 docker compose up airflow-init
 
-echo "docker compose up & setup waiting"
-docker compose up -d
-
-echo "spark consumer starting"
-docker exec -d spark-marter \
-	/opt/spark/bin/spark-submit \
-	--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0,com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.16 \
-	--conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
-	--conf spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS \
-	/opt/spark/scripts/consumer.py
-
-echo "locust producer starting"
-locust -f producer.py --headless
+END
 
 echo "Infra setup & auto-start completed"

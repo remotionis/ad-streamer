@@ -10,10 +10,10 @@ from data_generator import generate_ad_log
 
 
 # config 세팅값 가져오기 + 셋업
-with open('../config.yaml', 'r', encoding='utf-8') as file:
-        data = yaml.safe_load(file)
+with open('config.yaml', 'r', encoding='utf-8') as file:
+    data = yaml.safe_load(file)
 
-KAFKA_BROKER = data['broker']
+KAFKA_BROKER = data['broker']['external']
 TOPIC_NAME = data['topic']
 
 
@@ -26,37 +26,38 @@ def reset_kafka_topic():
 
     # 기존 토픽 확인 후 제거
     if TOPIC_NAME in metadata.topics:
-	try:
+        try:
             fs = admin_client.delete_topics([TOPIC_NAME])
-	    for topic, f in fs.items():
-	        f.result()
-	    print("기존 토픽 발견, 제거 완료")
-	except Exception as e:
-	    print(f"토픽 제거 중 에러: {e}")
+            for topic, f in fs.items():
+                f.result()
+            print("기존 토픽 발견, 제거 완료")
+        except Exception as e:
+            print(f"토픽 제거 중 에러: {e}")
     time.sleep(2)
 
     try:
-	new_topic = NewTopic(TOPIC_NAME, num_partitions=10, replication_factor=1)
-	fs = admin_client.create_topics([new_topic])
-	for topic, f in fs.items():
-	    f.result()
-	print("신규 토픽 생성 완료")
+        new_topic = NewTopic(TOPIC_NAME, num_partitions=10, replication_factor=1)
+        fs = admin_client.create_topics([new_topic])
+        for topic, f in fs.items():
+            f.result()
+        print("신규 토픽 생성 완료")
     except Exception as e:
-	print(f"토픽 생성 중 에러: {e}")
+        print(f"토픽 생성 중 에러: {e}")
 
 
 # 이벤트 훅 - 테스트 시 reset_kafka_topic은 최초 1회만 실행되도록
 @events.test_start.add_listener
 def before_start(environment, **kwargs):
     if not isinstance(environment.runner, locust.runners.WorkerRunner):
-	reset_kafka_topic()
+        reset_kafka_topic()
 
 
 # Kafka Producer 초기화
 producer = Producer({
     'bootstrap.servers': KAFKA_BROKER,
-    'queue.buffering.max.messages': 1000000, # 버퍼 크기 최대화
+    'queue.buffering.max.messages': 100000, # 버퍼 크기
     'linger.ms': 5, # 대기시간(의도적 지연) - 미니 배치 형성될 만큼 데이터 쌓아둠
+    'message.timeout.ms': 10000, # 10초 내에 메시지 못 가면 drop
     'compression.type': 'lz4' # 데이터 압축 -> 네트워크 대역폭 절약
 })
 
@@ -69,7 +70,7 @@ class KafkaUser(User):
     def send_ad_log(self):
         start_time = time.time()
         log_data = generate_ad_log()
-        
+
         try:
             # Kafka로 JSON 데이터 전송(비동기) 시도
             producer.produce(
