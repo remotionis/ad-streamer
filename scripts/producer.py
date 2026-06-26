@@ -2,10 +2,10 @@
 import json
 import time
 import yaml
-from locust import User, task, events, LoadTestShape
-import locust.runners
+from locust import User, task, events, LoadTestShape, constant
+#import locust.runners
 from confluent_kafka import Producer
-from confluent_kafka.admin import AdminClient, NewTopic
+#from confluent_kafka.admin import AdminClient, NewTopic
 from data_generator import generate_ad_log
 
 
@@ -16,7 +16,7 @@ with open('config.yaml', 'r', encoding='utf-8') as file:
 KAFKA_BROKER = data['broker']['external']
 TOPIC_NAME = data['topic']
 
-
+"""
 # kafka 토픽 생성 - 동일 토픽명 존재 시 기존 토픽 삭제 후 수행
 def reset_kafka_topic():
     admin_client = AdminClient({'bootstrap.servers': KAFKA_BROKER})
@@ -51,7 +51,6 @@ def before_start(environment, **kwargs):
     if not isinstance(environment.runner, locust.runners.WorkerRunner):
         reset_kafka_topic()
 
-
 # Kafka Producer 초기화
 producer = Producer({
     'bootstrap.servers': KAFKA_BROKER,
@@ -60,11 +59,23 @@ producer = Producer({
     'message.timeout.ms': 10000, # 10초 내에 메시지 못 가면 drop
     'compression.type': 'lz4' # 데이터 압축 -> 네트워크 대역폭 절약
 })
+"""
 
 
 # 가상 유저
 class KafkaUser(User):
-    abstract = False
+    wait_time = constant(1)
+
+    def on_start(self):
+        # Kafka Producer 초기화
+        self.producer = Producer({
+            'bootstrap.servers': KAFKA_BROKER,
+            'queue.buffering.max.messages': 100000, # 버퍼 크기
+            'linger.ms': 5, # 대기시간(의도적 지연) - 미니 배치 형성될 만큼 데이터 쌓아둠
+            'message.timeout.ms': 10000, # 10초 내에 메시지 못 가면 drop
+            'compression.type': 'lz4', # 데이터 압축 -> 네트워크 대역폭 절약
+            'api.version.request': True
+        })
 
     @task
     def send_ad_log(self):
@@ -73,11 +84,14 @@ class KafkaUser(User):
 
         try:
             # Kafka로 JSON 데이터 전송(비동기) 시도
-            producer.produce(
+            self.producer.produce(
                 topic=TOPIC_NAME,
                 key=log_data["user_id"], # 파티션 키
                 value=json.dumps(log_data).encode('utf-8')
             )
+
+            self.producer.poll(0) # callback
+
             # 성공 시: Locust UI 및 통계에 기록
             events.request.fire(
                 request_type="Kafka",
@@ -95,7 +109,9 @@ class KafkaUser(User):
                 response_length=0,
                 exception=e,
             )
-        producer.poll(0) # callback
+    def on_stop(self):
+        if hasattr(self, 'producer'):
+            self.producer.flush(timeout=5)
 
 
 # 커스텀 스케줄러
