@@ -40,7 +40,7 @@ END
 # producer 실행
 echo "locust starting"
 # locust -f ./scripts/dummy_producer.py --headless > locust.log 2>&1 &
-locust -f ./scripts/producer.py --master --master-bind-host=127.0.0.1 --headless > locust_master.log 2>&1 &
+locust -f ./scripts/producer.py --master --master-bind-host=127.0.0.1 --headless > ./logs/locust_master.log 2>&1 &
 MASTER_PID=$!
 echo "locust master activated - PID: $MASTER_PID"
 sleep 2
@@ -48,7 +48,7 @@ sleep 2
 WORKER_COUNT=4
 for i in $(seq 1 $WORKER_COUNT)
 do
-        locust -f ./scripts/producer.py --worker --master-host=127.0.0.1 > locust_worker_$i.log 2>&1 &
+        locust -f ./scripts/producer.py --worker --master-host=127.0.0.1 > ./logs/locust_worker_$i.log 2>&1 &
         echo "locust worker $i activated"
 done
 
