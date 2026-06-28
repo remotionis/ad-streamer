@@ -2,7 +2,12 @@
 bash deploy.sh
 
 # 가상환경 활성화
-. locust_env/bin/activate
+source locust_env/bin/activate
+
+sudo lsof -t -i :5557 | xargs -r sudo kill -9
+sudo lsof -t -i :5558 | xargs -r sudo kill -9
+rm -f /tmp/locust_*.sock 2>/dev/null
+sleep 1
 
 # docker 실행
 echo "docker starting"
@@ -12,18 +17,19 @@ echo "sleep while kafka starting"
 while ! nc -z localhost 19092; do
     sleep 1
 done
-nc -vz localhost 1909
-
-
+nc -vz localhost 19092
 sleep 2
 
 # 기존 토픽 청소
+echo "topic reset"
 docker exec -t redpanda rpk topic delete ad-stream-topic 2>/dev/null
+sleep 1
 docker exec -t redpanda rpk topic create ad-stream-topic -p 10
+sleep 1
 
 :<<'END'
 echo "spark consumer starting"
-docker exec -d spark-marter \
+docker exec -d spark-master \
         /opt/spark/bin/spark-submit \
         --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0,com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.16 \
         --conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
@@ -33,8 +39,8 @@ END
 
 # producer 실행
 echo "locust starting"
-# locust -f ./scripts/producer.py --headless > locust.log 2>&1 &
-locust -f ./scripts/producer.py --master --master-bind-host=127.0.0.1 > locust_master.log 2>&1 &
+# locust -f ./scripts/dummy_producer.py --headless > locust.log 2>&1 &
+locust -f ./scripts/producer.py --master --master-bind-host=127.0.0.1 --headless > locust_master.log 2>&1 &
 MASTER_PID=$!
 echo "locust master activated - PID: $MASTER_PID"
 sleep 2
@@ -47,7 +53,7 @@ do
 done
 
 # 모니터링을 위한 루프
-MAX_TIMEOUT=120 
+MAX_TIMEOUT=300
 START_TIME=$SECONDS
 
 while kill -0 $MASTER_PID 2>/dev/null; do
@@ -58,19 +64,21 @@ while kill -0 $MASTER_PID 2>/dev/null; do
                 break
         fi
 
-        # worker crash
+        # no workers
         ALIVE_WORKERS=$(pgrep -f "locust.*--worker" | wc -l)
         if [ "$ALIVE_WORKERS" -eq 0 ]; then
-                echo "worker crashed"
+                if [ $ELAPSED -ge 85 ]; then
+                        echo "Worker successfully ended"
+                else
+                        echo "Worker crashed"
+                fi
                 break
         fi
-
         sleep 5
 done
 echo "test all done"
 
-
-# 결과 확인, 가상환경 및 docker 비활성화 후 종료
+# 결과 확인, 포트킬 및 가상환경 비활성화 후 종료
 pkill -9 -f locust
 pkill -9 -f "locust.*--worker"
 
@@ -80,10 +88,9 @@ sudo fuser -k 5558/tcp
 sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 
 deactivate
-# redpanda 내 정상 적재 여부 확인
-docker exec -it redpanda rpk group list
-#docker logs redpanda > redpanda.log 2>&1 &
-docker compose stop
+
+# redpanda consumer group 확인 후 docker 종료
+#docker exec -it redpanda rpk group list
+docker logs redpanda > redpanda.log 2>&1
 #sudo rm -rf locust_env
-docker compose rm -f redpanda
 docker compose down -v
