@@ -26,30 +26,40 @@ services:
 
   # 3. Spark(Master)
   spark-master:
-    image: apache/spark:latest
+    image: apache/spark:3.5.1
     container_name: spark-master
-    environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
+    hostname: spark-master
     ports:
       - "8081:8080"
       - "7077:7077"
+    command: [
+      "/opt/spark/bin/spark-class",
+      "org.apache.spark.deploy.master.Master"
+    ]
     volumes:
-      - ./scripts:/opt/spark/scripts
+      - ./scripts/consumer.py:/opt/spark/scripts/consumer.py:ro
+      - ./scripts/dummy_init.py:/opt/spark/scripts/dummy_init.py:ro
+      - ./config.yaml:/opt/spark/scripts/config.yaml:ro
+      - ./spark_cache:/tmp/.ivy2
+      - ./credentials:/opt/spark/credentials:ro
 
   # 4. Spark(Worker)
   spark-worker:
-    image: apache/spark:latest
+    image: apache/spark:3.5.1
     container_name: spark-worker
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=8G
       - SPARK_WORKER_CORES=4
     depends_on:
       - spark-master
+    command: [
+      "/opt/spark/bin/spark-class",
+      "org.apache.spark.deploy.worker.Worker",
+      "spark://spark-master:7077"
+    ]
     volumes:
-      - ./scripts:/opt/spark/scripts
+      - ./scripts/consumer.py:/opt/spark/scripts/consumer.py:ro
+      - ./scripts/dummy_init.py:/opt/spark/scripts/dummy_init.py:ro
+      - ./config.yaml:/opt/spark/scripts/config.yaml:ro
+      - ./spark_cache:/tmp/.ivy2
+      - ./credentials:/opt/spark/credentials:ro

@@ -27,15 +27,20 @@ sleep 1
 docker exec -t redpanda rpk topic create ad-stream-topic -p 10
 sleep 1
 
-:<<'END'
+docker ps
+
+# spark 환경설정 및 consumer 실행
 echo "spark consumer starting"
-docker exec -d spark-master \
+docker exec -u root spark-master  pip install PyYAML
+docker exec spark-master \
         /opt/spark/bin/spark-submit \
-        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0,com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.16 \
+        --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,io.delta:delta-spark_2.12:3.1.0 \
+        --jars /tmp/.ivy2/gcs-connector-hadoop3-2.2.16-shaded.jar \
+        --conf spark.jars.ivy=/tmp/.ivy2 \
         --conf spark.hadoop.fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem \
         --conf spark.hadoop.fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS \
-        /opt/spark/scripts/consumer.py
-END
+        /opt/spark/scripts/consumer.py > logs/consumer.log 2>&1 &
+sleep 2
 
 # producer 실행
 echo "locust starting"
@@ -89,8 +94,9 @@ sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 
 deactivate
 
-# redpanda consumer group 확인 후 docker 종료
-#docker exec -it redpanda rpk group list
-docker logs redpanda > redpanda.log 2>&1
+# docker 종료
+docker logs redpanda > logs/redpanda.log 2>&1
+docker logs spark-master > logs/spark_master.log 2>&1
 #sudo rm -rf locust_env
 docker compose down -v
+sudo rm -rf /tmp/checkpoint /tmp/.ivy2
