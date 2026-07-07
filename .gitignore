@@ -3,3 +3,4 @@ config.yaml
 locust_env/
 scripts/__pycache__/
 spark_cache/
+credentials/
